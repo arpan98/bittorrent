@@ -6,19 +6,29 @@ import com.arpan.message.HandshakeMessage;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.net.ConnectException;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 
 public class PeerConnection {
 
     private ObjectInputStream in;	    //stream read from the socket
     private ObjectOutputStream out;     //stream write to the socket
     private Socket socket;
-    private boolean isConnected, isHandshakeDone;
+    private boolean isHandshakeDone;
     private String peerId;
 
+    private boolean isReceiverSocket = false;
+    private ReceiverSocketHandler receiverSocketHandler;
+
     public PeerConnection() {
+    }
+
+    public PeerConnection(Socket socket, ReceiverSocketHandler receiverSocketHandler) {
+        this.socket = socket;
+        isReceiverSocket = true;
+        this.receiverSocketHandler = receiverSocketHandler;
+        setupStreams();
     }
 
     public String waitForHandshake() {
@@ -42,6 +52,37 @@ public class PeerConnection {
         }
     }
 
+    public void startReceiveLoop() {
+        if (isReceiverSocket) {
+            while (true) {
+                byte[] lengthBytes = new byte[4];
+                try {
+                    int count = in.read(lengthBytes);
+                    if (count != 4) {
+                        System.out.println("Message length should be 4 bytes");
+                    }
+                    System.out.println(Arrays.toString(lengthBytes));
+                    int messageLength = ByteUtils.readMessageLength(lengthBytes);
+                    System.out.println("Incoming message length = " + messageLength);
+
+                    byte messageType = in.readByte();
+
+                    byte[] messagePayload = new byte[messageLength];
+                    count = in.read(messagePayload);
+                    if (count != messageLength) {
+                        System.out.println("Bytes read = " + count + " Message length = " + messageLength);
+                    }
+                    receiverSocketHandler.onReceivedMessage(peerId, messageType, messagePayload);
+
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        } else {
+            System.out.println("This socket (" + peerId +  ") is not for receiving.");
+        }
+    }
+
     public String getPeerFromHandshakeMessage(byte[] bytes) {
         return new String(bytes,28, 4, StandardCharsets.ISO_8859_1);
     }
@@ -61,16 +102,9 @@ public class PeerConnection {
         }
     }
 
-    public PeerConnection(Socket socket) {
-        this.socket = socket;
-        this.isConnected = true;
-        setupStreams();
-    }
-
     public boolean connect(String hostName, int portNum) {
         try {
             this.socket = new Socket(hostName, portNum);
-            this.isConnected = true;
             setupStreams();
         } catch (IOException e) {
             return false;

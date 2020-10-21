@@ -16,7 +16,7 @@ public class ListeningServer extends Thread {
     public void run() {
         try (ServerSocket listener = new ServerSocket(this.portNum)) {
             while (true) {
-                PeerConnection peerConnection = new PeerConnection(listener.accept());
+                PeerConnection peerConnection = new PeerConnection(listener.accept(), receiverSocketHandler);
                 receiverSocketHandler.onReceivedConnection(peerConnection);
             }
         } catch (IOException e) {

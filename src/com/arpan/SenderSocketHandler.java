@@ -4,7 +4,6 @@ import com.arpan.message.BitfieldMessage;
 import com.arpan.message.HandshakeMessage;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 public class SenderSocketHandler {
@@ -34,22 +33,23 @@ public class SenderSocketHandler {
         return false;
     }
 
-    public void handshakeWithPeer(String peerId) {
+    public void sendHandshake(String peerId) {
         PeerConnection peerConnection = peerConnectionMap.get(peerId);
         if (peerConnection != null) {
-            HandshakeMessage handshakeMessage = new HandshakeMessage(peerId);
+            HandshakeMessage handshakeMessage = new HandshakeMessage(selfId);
             peerConnection.sendHandshake(handshakeMessage);
-            System.out.println(selfId + ": Sent handshake to " + selfId);
         } else {
             System.out.println("Not connected to " + peerId);
         }
     }
 
-    private void sendBitfield(PeerConnection peerConnection, String peerId) {
-        byte[] bitfield = peer.getBitField().toByteArray();
-        BitfieldMessage bitfieldMessage = new BitfieldMessage(bitfield);
-        peerConnection.sendMessage(bitfieldMessage.getMessage());
-        System.out.println("Sent bitfield to " + peerId);
+    public void sendMessage(String peerId, byte[] message) {
+        PeerConnection peerConnection = peerConnectionMap.get(peerId);
+        if (peerConnection != null) {
+            peerConnection.sendMessage(message);
+        } else {
+            System.out.println("Not connected to " + peerId);
+        }
     }
 
     public void setPeerConnection(String peerId, PeerConnection peerConnection) {

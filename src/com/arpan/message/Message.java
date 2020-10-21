@@ -2,8 +2,6 @@ package com.arpan.message;
 
 import com.arpan.ByteUtils;
 
-import java.nio.ByteBuffer;
-
 public abstract class Message implements MessageInterface {
     protected int messageLength;
     protected byte messageType;
@@ -11,7 +9,7 @@ public abstract class Message implements MessageInterface {
 
     @Override
     public byte[] getMessage() {
-        return ByteUtils.concatByteArrays(ByteBuffer.allocate(4).putInt(messageLength).array(),
+        return ByteUtils.concatByteArrays(ByteUtils.messageLengthToBytes(messageLength),
                 new byte[] {messageType}, messagePayload);
     }
 
