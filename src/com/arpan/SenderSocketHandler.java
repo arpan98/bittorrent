@@ -2,8 +2,8 @@ package com.arpan;
 
 import com.arpan.message.HandshakeMessage;
 
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class SenderSocketHandler {
     private final Peer peer;
@@ -14,7 +14,7 @@ public class SenderSocketHandler {
     public SenderSocketHandler(Peer peer) {
         this.selfId = peer.getPeerId();
         this.peer = peer;
-        this.peerConnectionMap = new HashMap<>();
+        this.peerConnectionMap = new ConcurrentHashMap<>();
     }
 
     public PeerConnection connectToPeerBlocking(PeerInfo peerInfo) {

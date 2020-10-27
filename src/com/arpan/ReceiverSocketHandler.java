@@ -3,8 +3,8 @@ package com.arpan;
 import com.arpan.message.BitfieldMessage;
 import com.arpan.message.MessageType;
 
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class ReceiverSocketHandler {
     private final Peer peer;
@@ -15,12 +15,12 @@ public class ReceiverSocketHandler {
     public ReceiverSocketHandler(Peer peer, String selfId) {
         this.peer = peer;
         this.selfId = selfId;
-        this.peerConnectionMap = new HashMap<>();
+        this.peerConnectionMap = new ConcurrentHashMap<>();
     }
 
     public void run() {
         startListeningServer();
-//        startReceivingLoop();
+        startReceivingLoop();
     }
 
     public void onReceivedConnection(PeerConnection peerConnection) {
@@ -56,7 +56,7 @@ public class ReceiverSocketHandler {
         }
         else if (typeByte == MessageType.BITFIELD.getValue()) {
             BitfieldMessage bitfieldMessage = new BitfieldMessage(messagePayload);
-            peer.onReceivedBitfieldMessage(peerId, bitfieldMessage);
+            peer.handleBitfieldMessage(peerId, bitfieldMessage);
         }
         else if (typeByte == MessageType.REQUEST.getValue()) {
 
@@ -79,9 +79,11 @@ public class ReceiverSocketHandler {
         peerConnection.tryReceive();
     }
 
-    private void startReceivingLoop() {
-        for (PeerConnection peerConnection : peerConnectionMap.values()) {
-            peerConnection.tryReceive();
+    public void startReceivingLoop() {
+        while (true) {
+            for (PeerConnection peerConnection : peerConnectionMap.values()) {
+                peerConnection.tryReceive();
+            }
         }
     }
 }

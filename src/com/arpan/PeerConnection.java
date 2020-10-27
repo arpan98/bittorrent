@@ -7,10 +7,14 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
+import java.net.SocketException;
+import java.net.SocketTimeoutException;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
 public class PeerConnection {
+
+    private static final int SO_TIMEOUT = 1000; // milliseconds
 
     private ObjectInputStream in;	    //stream read from the socket
     private ObjectOutputStream out;     //stream write to the socket
@@ -18,7 +22,6 @@ public class PeerConnection {
     private boolean isHandshakeDone;
     private String peerId;
 
-    private boolean isReceiverSocket = false;
     private ReceiverSocketHandler receiverSocketHandler;
 
     public PeerConnection() {
@@ -26,7 +29,11 @@ public class PeerConnection {
 
     public PeerConnection(Socket socket, ReceiverSocketHandler receiverSocketHandler) {
         this.socket = socket;
-        isReceiverSocket = true;
+        try {
+            this.socket.setSoTimeout(SO_TIMEOUT);
+        } catch (SocketException e) {
+            e.printStackTrace();
+        }
         this.receiverSocketHandler = receiverSocketHandler;
         setupStreams();
     }
@@ -53,32 +60,34 @@ public class PeerConnection {
     }
 
     public void tryReceive() {
-        if (isReceiverSocket) {
-            byte[] lengthBytes = new byte[4];
-            try {
-                int count = in.read(lengthBytes);
-                if (count != 4) {
-                    System.out.println("Message length should be 4 bytes");
-                }
-                System.out.println(Arrays.toString(lengthBytes));
-                int messageLength = ByteUtils.readMessageLength(lengthBytes);
-                System.out.println("Incoming message length = " + messageLength);
-
-                byte messageType = in.readByte();
-
-                byte[] messagePayload = new byte[messageLength];
-                count = in.read(messagePayload);
-                if (count != messageLength) {
-                    System.out.println("Bytes read = " + count + " Message length = " + messageLength);
-                }
-                receiverSocketHandler.onReceivedMessage(peerId, messageType, messagePayload);
-
-            } catch (IOException e) {
-                e.printStackTrace();
+        if (!isHandshakeDone)
+            return;
+//        System.out.println("Trying receive from " + peerId);
+        byte[] lengthBytes = new byte[4];
+        try {
+            int count = in.read(lengthBytes);
+            if (count != 4) {
+//                System.out.println("Message length is " + count + " bytes, should be 4 bytes");
+                return;
             }
-        } else {
-            System.out.println("This socket (" + peerId +  ") is not for receiving.");
-        }
+//            System.out.println(Arrays.toString(lengthBytes));
+            int messageLength = ByteUtils.readMessageLength(lengthBytes);
+            System.out.println("Incoming message length = " + messageLength);
+
+            byte messageType = in.readByte();
+
+            byte[] messagePayload = new byte[messageLength];
+            count = in.read(messagePayload);
+            if (count != messageLength) {
+                System.out.println("Bytes read = " + count + " Message length = " + messageLength);
+            }
+            receiverSocketHandler.onReceivedMessage(peerId, messageType, messagePayload);
+
+        } catch (SocketTimeoutException se) {
+            return;
+        } catch (IOException e) {
+        e.printStackTrace();
+    }
     }
 
     public String getPeerFromHandshakeMessage(byte[] bytes) {
@@ -103,11 +112,16 @@ public class PeerConnection {
     public boolean connect(String hostName, int portNum) {
         try {
             this.socket = new Socket(hostName, portNum);
+            this.socket.setSoTimeout(SO_TIMEOUT);
             setupStreams();
         } catch (IOException e) {
             return false;
         }
         return true;
+    }
+
+    public void setReceiverSocketHandler(ReceiverSocketHandler receiverSocketHandler) {
+        this.receiverSocketHandler = receiverSocketHandler;
     }
 
     private void setupStreams() {

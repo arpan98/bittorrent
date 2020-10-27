@@ -1,10 +1,8 @@
 package com.arpan;
 
 import com.arpan.message.BitfieldMessage;
-import com.arpan.message.Message;
 
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -22,7 +20,7 @@ public class Peer {
     private boolean hasFile;
     private BitField bitField;
 
-    private ExecutorService executor = Executors.newFixedThreadPool(1);
+    private final ExecutorService executor = Executors.newFixedThreadPool(2);
     private SynchronousQueue<byte[]> messageQueue = new SynchronousQueue<>();
 
     private ReceiverSocketHandler receiverSocketHandler;
@@ -76,7 +74,7 @@ public class Peer {
         System.out.println(otherId + ": " + peerStateMap.get(otherId));
         System.out.println("Has file? = " + hasFile);
         if (peerStateMap.get(otherId) == State.CONNECTED && hasFile) {
-//            sendBitfield(otherId);
+            sendBitfield(otherId);
         }
     }
 
@@ -87,14 +85,14 @@ public class Peer {
         receiverSocketHandler.receiveHandshake(otherId);
     }
 
-    public void onReceivedBitfieldMessage(String otherId, BitfieldMessage message) {
+    public void handleBitfieldMessage(String otherId, BitfieldMessage message) {
         System.out.println("Received Bitfield message from " + otherId);
         BitField peerBitfield = peerBitfieldMap.get(otherId);
         peerBitfield.setBits(message.getBitfield());
+        ByteUtils.printBits(peerBitfield.toByteArray());
     }
 
     private void sendBitfield(String peerId) {
-        System.out.println(Arrays.toString(bitField.toByteArray()));
         BitfieldMessage bitfieldMessage = new BitfieldMessage(bitField.toByteArray());
         senderSocketHandler.sendMessage(peerId, bitfieldMessage.getMessage());
         System.out.println("Sent bitfield to " + peerId);
@@ -107,6 +105,7 @@ public class Peer {
                 break;
             PeerConnection peerConnection = senderSocketHandler.connectToPeerBlocking(peerInfo);
             if (peerConnection != null) {
+                peerConnection.setReceiverSocketHandler(receiverSocketHandler);
                 System.out.println(this.peerId + " connected to " + otherId);
                 receiverSocketHandler.setPeerConnection(otherId, peerConnection);
                 handshakeWithPeer(otherId);
