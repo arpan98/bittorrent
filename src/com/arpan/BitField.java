@@ -22,6 +22,14 @@ public class BitField {
         }
     }
 
+    public boolean hasExtraBits(BitField other) {
+        for (int i = 0; i < this.size; i++) {
+            if (this.bitField.get(i) && !other.bitField.get(i))
+                return true;
+        }
+        return false;
+    }
+
     public byte[] toByteArray() {
         return bitField.toByteArray();
     }

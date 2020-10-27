@@ -46,10 +46,10 @@ public class ReceiverSocketHandler {
 
         }
         else if (typeByte == MessageType.INTERESTED.getValue()) {
-
+            peer.handleInterestedMessage(peerId);
         }
         else if (typeByte == MessageType.NOT_INTERESTED.getValue()) {
-
+            peer.handleNotInterestedMessage(peerId);
         }
         else if (typeByte == MessageType.HAVE.getValue()) {
 
