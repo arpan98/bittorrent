@@ -16,18 +16,26 @@ public class ReceiverSocketHandler {
         this.peer = peer;
         this.selfId = selfId;
         this.peerConnectionMap = new HashMap<>();
+    }
 
+    public void run() {
         startListeningServer();
+//        startReceivingLoop();
     }
 
     public void onReceivedConnection(PeerConnection peerConnection) {
         receiveHandshake(peerConnection);
     }
 
+    public void receiveHandshake (String peerId) {
+        PeerConnection peerConnection = peerConnectionMap.get(peerId);
+        receiveHandshake(peerConnection);
+    }
+
     public void receiveHandshake (PeerConnection peerConnection) {
         String otherId = peerConnection.waitForHandshake();
         peerConnectionMap.put(otherId, peerConnection);
-        peer.onNewHandshakeReceived(otherId);
+        peer.onNewHandshakeReceived(otherId, peerConnection);
     }
 
     public void onReceivedMessage(String peerId, byte typeByte, byte[] messagePayload) {
@@ -58,16 +66,22 @@ public class ReceiverSocketHandler {
         }
     }
 
+    public void setPeerConnection(String peerId, PeerConnection peerConnection) {
+        peerConnectionMap.put(peerId, peerConnection);
+    }
+
     private void startListeningServer() {
         new ListeningServer(peer.portNum, this).start();
     }
 
-    public void startReceivingLoop(String peerId) {
+    private void receiveMessage(String peerId) {
         PeerConnection peerConnection = peerConnectionMap.get(peerId);
-        peerConnection.startReceiveLoop();
+        peerConnection.tryReceive();
     }
 
-    public boolean isConnectedTo(String peerId) {
-        return peerConnectionMap.containsKey(peerId);
+    private void startReceivingLoop() {
+        for (PeerConnection peerConnection : peerConnectionMap.values()) {
+            peerConnection.tryReceive();
+        }
     }
 }

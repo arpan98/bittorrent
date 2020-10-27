@@ -52,31 +52,29 @@ public class PeerConnection {
         }
     }
 
-    public void startReceiveLoop() {
+    public void tryReceive() {
         if (isReceiverSocket) {
-            while (true) {
-                byte[] lengthBytes = new byte[4];
-                try {
-                    int count = in.read(lengthBytes);
-                    if (count != 4) {
-                        System.out.println("Message length should be 4 bytes");
-                    }
-                    System.out.println(Arrays.toString(lengthBytes));
-                    int messageLength = ByteUtils.readMessageLength(lengthBytes);
-                    System.out.println("Incoming message length = " + messageLength);
-
-                    byte messageType = in.readByte();
-
-                    byte[] messagePayload = new byte[messageLength];
-                    count = in.read(messagePayload);
-                    if (count != messageLength) {
-                        System.out.println("Bytes read = " + count + " Message length = " + messageLength);
-                    }
-                    receiverSocketHandler.onReceivedMessage(peerId, messageType, messagePayload);
-
-                } catch (IOException e) {
-                    e.printStackTrace();
+            byte[] lengthBytes = new byte[4];
+            try {
+                int count = in.read(lengthBytes);
+                if (count != 4) {
+                    System.out.println("Message length should be 4 bytes");
                 }
+                System.out.println(Arrays.toString(lengthBytes));
+                int messageLength = ByteUtils.readMessageLength(lengthBytes);
+                System.out.println("Incoming message length = " + messageLength);
+
+                byte messageType = in.readByte();
+
+                byte[] messagePayload = new byte[messageLength];
+                count = in.read(messagePayload);
+                if (count != messageLength) {
+                    System.out.println("Bytes read = " + count + " Message length = " + messageLength);
+                }
+                receiverSocketHandler.onReceivedMessage(peerId, messageType, messagePayload);
+
+            } catch (IOException e) {
+                e.printStackTrace();
             }
         } else {
             System.out.println("This socket (" + peerId +  ") is not for receiving.");

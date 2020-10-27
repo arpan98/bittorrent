@@ -1,12 +1,16 @@
 package com.arpan;
 
 import com.arpan.message.BitfieldMessage;
+import com.arpan.message.Message;
 
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.SynchronousQueue;
 
 public class Peer {
 
@@ -18,10 +22,12 @@ public class Peer {
     private boolean hasFile;
     private BitField bitField;
 
+    private ExecutorService executor = Executors.newFixedThreadPool(1);
+    private SynchronousQueue<byte[]> messageQueue = new SynchronousQueue<>();
+
     private ReceiverSocketHandler receiverSocketHandler;
     private SenderSocketHandler senderSocketHandler;
 
-    private Map<String, PeerInfo> peerInfoMap;
     private Map<String, State> peerStateMap;
     private Map<String, BitField> peerBitfieldMap;
 
@@ -46,28 +52,31 @@ public class Peer {
 
             senderSocketHandler = new SenderSocketHandler(this);
             receiverSocketHandler = new ReceiverSocketHandler(this, peerId);
+            Runnable receiver = () -> receiverSocketHandler.run();
+            executor.execute(receiver);
 
-            connectToPeers(peerInfoMap);
+            connectToPeers(peerInfoList);
 
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
-    public void onNewHandshakeReceived (String otherId) {
+    public void onNewHandshakeReceived (String otherId, PeerConnection peerConnection) {
         System.out.println("Received handshake from " + otherId);
         if (peerStateMap.get(otherId) == State.SENT_HANDSHAKE) {
             peerStateMap.put(otherId, State.CONNECTED);
-            receiverSocketHandler.startReceivingLoop(otherId);
         }
         else if (peerStateMap.get(otherId) == State.NOT_CONNECTED) {
-            senderSocketHandler.connectToPeerBlocking(peerInfoMap.get(otherId));
+            senderSocketHandler.setPeerConnection(otherId, peerConnection);
             System.out.println("Sending handshake to " + otherId);
             senderSocketHandler.sendHandshake(otherId);
             peerStateMap.put(otherId, State.CONNECTED);
         }
+        System.out.println(otherId + ": " + peerStateMap.get(otherId));
+        System.out.println("Has file? = " + hasFile);
         if (peerStateMap.get(otherId) == State.CONNECTED && hasFile) {
-            sendBitfield(otherId);
+//            sendBitfield(otherId);
         }
     }
 
@@ -75,6 +84,7 @@ public class Peer {
         System.out.println("Sending handshake to " + otherId);
         senderSocketHandler.sendHandshake(otherId);
         peerStateMap.put(otherId, State.SENT_HANDSHAKE);
+        receiverSocketHandler.receiveHandshake(otherId);
     }
 
     public void onReceivedBitfieldMessage(String otherId, BitfieldMessage message) {
@@ -90,17 +100,21 @@ public class Peer {
         System.out.println("Sent bitfield to " + peerId);
     }
 
-    private void connectToPeers(Map<String, PeerInfo> peerInfoMap) {
-        for (String otherId : peerInfoMap.keySet()) {
-            if (senderSocketHandler.connectToPeerBlocking(peerInfoMap.get(otherId))) {
-                System.out.println(peerId + " connected to " + otherId);
+    private void connectToPeers(List<PeerInfo> peerInfoList) {
+        for (PeerInfo peerInfo : peerInfoList) {
+            String otherId = peerInfo.peerId;
+            if (otherId.equals(this.peerId))
+                break;
+            PeerConnection peerConnection = senderSocketHandler.connectToPeerBlocking(peerInfo);
+            if (peerConnection != null) {
+                System.out.println(this.peerId + " connected to " + otherId);
+                receiverSocketHandler.setPeerConnection(otherId, peerConnection);
                 handshakeWithPeer(otherId);
             }
         }
     }
 
     private void processPeerInfo(String peerId, List<PeerInfo> peerInfoList, int num_pieces) {
-        peerInfoMap = new HashMap<>();
         peerStateMap = new HashMap<>();
         peerBitfieldMap = new HashMap<>();
         for (PeerInfo peerInfo : peerInfoList) {
@@ -108,7 +122,6 @@ public class Peer {
                 this.portNum = peerInfo.portNum;
                 this.hasFile |= peerInfo.hasFile;
             } else {
-                peerInfoMap.put(peerInfo.peerId, peerInfo);
                 peerStateMap.put(peerInfo.peerId, State.NOT_CONNECTED);
                 peerBitfieldMap.put(peerInfo.peerId, new BitField(false, num_pieces));
             }

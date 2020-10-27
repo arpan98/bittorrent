@@ -1,6 +1,5 @@
 package com.arpan;
 
-import com.arpan.message.BitfieldMessage;
 import com.arpan.message.HandshakeMessage;
 
 import java.util.HashMap;
@@ -18,19 +17,19 @@ public class SenderSocketHandler {
         this.peerConnectionMap = new HashMap<>();
     }
 
-    public boolean connectToPeerBlocking(PeerInfo peerInfo) {
+    public PeerConnection connectToPeerBlocking(PeerInfo peerInfo) {
         if (selfId.equals(peerInfo.peerId))
-            return false;
+            return null;
         else if (peerConnectionMap.containsKey(peerInfo.peerId))
-            return true;
+            return null;
         else {
             PeerConnection peerConnection = new PeerConnection();
             if (peerConnection.connect(peerInfo.hostName, peerInfo.portNum)) {
                 peerConnectionMap.put(peerInfo.peerId, peerConnection);
-                return true;
+                return peerConnection;
             }
         }
-        return false;
+        return null;
     }
 
     public void sendHandshake(String peerId) {
