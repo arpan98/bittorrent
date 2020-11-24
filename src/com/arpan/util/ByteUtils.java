@@ -1,4 +1,4 @@
-package com.arpan;
+package com.arpan.util;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;

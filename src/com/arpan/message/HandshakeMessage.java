@@ -1,6 +1,6 @@
 package com.arpan.message;
 
-import com.arpan.ByteUtils;
+import com.arpan.util.ByteUtils;
 
 import java.nio.charset.StandardCharsets;
 

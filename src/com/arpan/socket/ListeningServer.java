@@ -1,4 +1,7 @@
-package com.arpan;
+package com.arpan.socket;
+
+import com.arpan.socket.PeerConnection;
+import com.arpan.socket.ReceiverSocketHandler;
 
 import java.io.IOException;
 import java.net.ServerSocket;

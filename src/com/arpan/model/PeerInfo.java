@@ -1,10 +1,10 @@
-package com.arpan;
+package com.arpan.model;
 
 public class PeerInfo {
-    String peerId;
-    String hostName;
-    int portNum;
-    boolean hasFile;
+    public String peerId;
+    public String hostName;
+    public int portNum;
+    public boolean hasFile;
 
     public PeerInfo(String configLine) {
         String[] splitLine = configLine.split(" ");

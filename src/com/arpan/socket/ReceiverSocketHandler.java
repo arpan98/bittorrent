@@ -1,5 +1,6 @@
-package com.arpan;
+package com.arpan.socket;
 
+import com.arpan.Peer;
 import com.arpan.message.BitfieldMessage;
 import com.arpan.message.MessageType;
 
@@ -8,13 +9,11 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class ReceiverSocketHandler {
     private final Peer peer;
-    private final String selfId;
 
     private final Map<String, PeerConnection> peerConnectionMap;
 
-    public ReceiverSocketHandler(Peer peer, String selfId) {
+    public ReceiverSocketHandler(Peer peer) {
         this.peer = peer;
-        this.selfId = selfId;
         this.peerConnectionMap = new ConcurrentHashMap<>();
     }
 
@@ -40,10 +39,11 @@ public class ReceiverSocketHandler {
 
     public void onReceivedMessage(String peerId, byte typeByte, byte[] messagePayload) {
         if (typeByte == MessageType.CHOKE.getValue()) {
-
+            peer.handleChokeMessage(peerId);
         }
         else if (typeByte == MessageType.UNCHOKE.getValue()) {
-
+            System.out.println("Got unchoke message from " + peerId);
+            peer.handleUnchokeMessage(peerId);
         }
         else if (typeByte == MessageType.INTERESTED.getValue()) {
             peer.handleInterestedMessage(peerId);

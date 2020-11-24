@@ -1,17 +1,24 @@
 package com.arpan;
 
 import com.arpan.log.LoggingThread;
-import com.arpan.message.BitfieldMessage;
-import com.arpan.message.InterestedMessage;
-import com.arpan.message.NotInterestedMessage;
+import com.arpan.message.*;
+import com.arpan.model.BitField;
+import com.arpan.model.PeerInfo;
+import com.arpan.model.State;
+import com.arpan.socket.PeerConnection;
+import com.arpan.socket.ReceiverSocketHandler;
+import com.arpan.socket.SenderSocketHandler;
+import com.arpan.timertask.OptimisticUnchokingTask;
+import com.arpan.timertask.PreferredNeighborsTask;
+import com.arpan.util.Config;
 
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.stream.Collectors;
 
 public class Peer {
 
@@ -28,12 +35,16 @@ public class Peer {
     private ReceiverSocketHandler receiverSocketHandler;
     private SenderSocketHandler senderSocketHandler;
 
-    private final Map<String, State> peerStateMap = new HashMap<>();;
-    private final Map<String, BitField> peerBitfieldMap = new HashMap<>();
-    private final Map<String, Boolean> iAmInterestedInMap = new HashMap<>();
-    private final Map<String, Boolean> interestedInMeMap = new HashMap<>();
+    private List<String> preferredNeighbors = new ArrayList<>();
 
-    LinkedBlockingQueue<String> logQueue = new LinkedBlockingQueue<>();
+    private final Map<String, State> sendStateMap = new HashMap<>();
+    private final Map<String, State> receiveStateMap = new HashMap<>();
+    private final Map<String, BitField> peerBitfieldMap = new HashMap<>();
+    private final Map<String, Boolean> iAmInterestedInMap = new ConcurrentHashMap<>();
+    private final Map<String, Boolean> interestedInMeMap = new ConcurrentHashMap<>();
+    public final Map<String, Float> peerDownloadRateMap = new ConcurrentHashMap<>();
+
+    private final LinkedBlockingQueue<String> logQueue = new LinkedBlockingQueue<>();
 
     public Peer(String peerId) {
         this.peerId = peerId;
@@ -52,7 +63,7 @@ public class Peer {
             config.readCommon(COMMON_CONFIG);
             int num_pieces = (int) Math.ceil((double)config.getFileSize() / config.getPieceSize());
 
-            List<PeerInfo> peerInfoList = config.readPeerInfo(peerId, PEER_INFO_CONFIG);
+            List<PeerInfo> peerInfoList = config.readPeerInfo(PEER_INFO_CONFIG);
             processPeerInfo(peerId, peerInfoList, num_pieces);
             bitField = new BitField(hasFile, num_pieces);
 
@@ -61,11 +72,12 @@ public class Peer {
             executor.execute(loggingThread::startLogging);
 
             senderSocketHandler = new SenderSocketHandler(this);
-            receiverSocketHandler = new ReceiverSocketHandler(this, peerId);
+            receiverSocketHandler = new ReceiverSocketHandler(this);
             Runnable receiver = () -> receiverSocketHandler.run();
             executor.execute(receiver);
 
             connectToPeers(peerInfoList);
+            startTimerTasks(config);
 
         } catch (IOException e) {
             e.printStackTrace();
@@ -93,31 +105,41 @@ public class Peer {
                 this.portNum = peerInfo.portNum;
                 this.hasFile |= peerInfo.hasFile;
             } else {
-                peerStateMap.put(peerInfo.peerId, State.NOT_CONNECTED);
+                sendStateMap.put(peerInfo.peerId, State.NOT_CONNECTED);
+                receiveStateMap.put(peerInfo.peerId, State.CHOKED);
                 peerBitfieldMap.put(peerInfo.peerId, new BitField(false, num_pieces));
                 iAmInterestedInMap.put(peerInfo.peerId, false);
                 interestedInMeMap.put(peerInfo.peerId, false);
+                peerDownloadRateMap.put(peerInfo.peerId, 0f);
             }
         }
+    }
+
+    private void startTimerTasks(Config config) {
+        PreferredNeighborsTask preferredNeighborsTask = new PreferredNeighborsTask(this, config);
+        new Timer().schedule(preferredNeighborsTask, 0, config.getUnchokingInterval() * 1000);
+
+        OptimisticUnchokingTask optimisticUnchokingTask = new OptimisticUnchokingTask(this);
+        new Timer().schedule(optimisticUnchokingTask, 0, config.getOptimisticUnchokingInterval() * 1000);
     }
 
     /**************  HANDSHAKE  ********************/
 
     public void onNewHandshakeReceived (String otherId, PeerConnection peerConnection) {
 //        System.out.println("Received handshake from " + otherId);
-        if (peerStateMap.get(otherId) == State.SENT_HANDSHAKE) {
-            peerStateMap.put(otherId, State.CONNECTED);
+        if (sendStateMap.get(otherId) == State.SENT_HANDSHAKE) {
+            sendStateMap.put(otherId, State.CONNECTED);
         }
-        else if (peerStateMap.get(otherId) == State.NOT_CONNECTED) {
+        else if (sendStateMap.get(otherId) == State.NOT_CONNECTED) {
             senderSocketHandler.setPeerConnection(otherId, peerConnection);
             log(String.format("Peer %s is connected from Peer %s.", this.peerId, otherId));
 //            System.out.println("Sending handshake to " + otherId);
             senderSocketHandler.sendHandshake(otherId);
-            peerStateMap.put(otherId, State.CONNECTED);
+            sendStateMap.put(otherId, State.CONNECTED);
         }
-        System.out.println(otherId + ": " + peerStateMap.get(otherId));
+        System.out.println(otherId + ": " + sendStateMap.get(otherId));
 //        System.out.println("Has file? = " + hasFile);
-        if (peerStateMap.get(otherId) == State.CONNECTED && hasFile) {
+        if (sendStateMap.get(otherId) == State.CONNECTED && hasFile) {
             sendBitfield(otherId);
         }
     }
@@ -125,7 +147,7 @@ public class Peer {
     public void handshakeWithPeer(String otherId) {
 //        System.out.println("Sending handshake to " + otherId);
         senderSocketHandler.sendHandshake(otherId);
-        peerStateMap.put(otherId, State.SENT_HANDSHAKE);
+        sendStateMap.put(otherId, State.SENT_HANDSHAKE);
         receiverSocketHandler.receiveHandshake(otherId);
     }
 
@@ -154,6 +176,18 @@ public class Peer {
         interestedInMeMap.put(otherId, false);
     }
 
+    public void handleChokeMessage(String otherId) {
+        log(String.format("Peer %s is choked by %s.", this.peerId, otherId));
+        receiveStateMap.put(otherId, State.CHOKED);
+    }
+
+    public void handleUnchokeMessage(String otherId) {
+        log(String.format("Peer %s is unchoked by %s.", this.peerId, otherId));
+        receiveStateMap.put(otherId, State.UNCHOKED);
+    }
+
+    /**************  SEND MESSAGES  ********************/
+
     private void sendInterested(String otherId) {
         InterestedMessage interestedMessage = new InterestedMessage();
         senderSocketHandler.sendMessage(otherId, interestedMessage.getMessage());
@@ -174,13 +208,67 @@ public class Peer {
         System.out.println("Sent bitfield to " + otherId);
     }
 
+    private void sendChoke(String otherId) {
+        ChokeMessage chokeMessage = new ChokeMessage();
+        senderSocketHandler.sendMessage(otherId, chokeMessage.getMessage());
+        sendStateMap.put(otherId, State.CHOKED);
+        System.out.println("Sent choke to " + otherId);
+    }
+
+    private void sendUnchoke(String otherId) {
+        UnchokeMessage unchokeMessage = new UnchokeMessage();
+        senderSocketHandler.sendMessage(otherId, unchokeMessage.getMessage());
+        sendStateMap.put(otherId, State.UNCHOKED);
+        System.out.println("Sent unchoke to " + otherId);
+    }
+
+    public void setPreferredNeighbors(List<String> preferredNeighbors) {
+        List<String> previouslyPreferredNeighbors = this.preferredNeighbors;
+        this.preferredNeighbors = preferredNeighbors;
+
+        if (!preferredNeighbors.isEmpty()) {
+            String preferredNeighborsString = String.join(", ", preferredNeighbors);
+            log(String.format("Peer %s has the preferred neighbors %s.", this.peerId, preferredNeighborsString));
+        }
+
+        previouslyPreferredNeighbors.stream()
+                .filter(neighbor -> !preferredNeighbors.contains(neighbor))
+                .forEach(this::sendChoke);
+
+        preferredNeighbors.stream()
+                .filter(neighbor -> !previouslyPreferredNeighbors.contains(neighbor))
+                .forEach(this::sendUnchoke);
+    }
+
+    public void setOptimisticallyUnchokedNeighbor(String otherId) {
+        log(String.format("Peer %s has the optimistically unchoked neighbor %s.", this.peerId, otherId));
+        sendUnchoke(otherId);
+    }
+
+    public List<String> getPeersInterestedInMe() {
+        return interestedInMeMap.entrySet().stream()
+                .filter(Map.Entry::getValue)
+                .map(Map.Entry::getKey)
+                .collect(Collectors.toList());
+    }
+
+    public List<String> getSendChokedPeers() {
+        return sendStateMap.entrySet().stream()
+                .filter(entry -> entry.getValue().equals(State.CHOKED))
+                .map(Map.Entry::getKey)
+                .collect(Collectors.toList());
+    }
+
     public void log(String message) {
-        System.out.println(logQueue.toString());
         try {
             logQueue.put(message);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
+    }
+
+    public boolean hasCompleteFile() {
+        return bitField.hasCompleteFile();
     }
 
     public String getPeerId() {

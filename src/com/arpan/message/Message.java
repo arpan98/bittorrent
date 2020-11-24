@@ -1,6 +1,6 @@
 package com.arpan.message;
 
-import com.arpan.ByteUtils;
+import com.arpan.util.ByteUtils;
 
 public abstract class Message implements MessageInterface {
     protected int messageLength;

@@ -1,6 +1,7 @@
-package com.arpan;
+package com.arpan.socket;
 
 
+import com.arpan.util.ByteUtils;
 import com.arpan.message.HandshakeMessage;
 
 import java.io.IOException;
@@ -10,7 +11,6 @@ import java.net.Socket;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
 
 public class PeerConnection {
 
@@ -31,6 +31,7 @@ public class PeerConnection {
         this.socket = socket;
         try {
             this.socket.setSoTimeout(SO_TIMEOUT);
+            this.socket.setTcpNoDelay(true);
         } catch (SocketException e) {
             e.printStackTrace();
         }
@@ -63,31 +64,33 @@ public class PeerConnection {
         if (!isHandshakeDone)
             return;
 //        System.out.println("Trying receive from " + peerId);
-        byte[] lengthBytes = new byte[4];
-        try {
-            int count = in.read(lengthBytes);
-            if (count != 4) {
+        synchronized (in) {
+            byte[] lengthBytes = new byte[4];
+            try {
+                int count = in.read(lengthBytes);
+                if (count != 4) {
 //                System.out.println("Message length is " + count + " bytes, should be 4 bytes");
+                    return;
+                }
+                int messageLength = ByteUtils.readMessageLength(lengthBytes);
+//            System.out.println("Incoming message length = " + messageLength);
+
+                byte messageType = in.readByte();
+
+                byte[] messagePayload = new byte[messageLength];
+                count = in.read(messagePayload);
+                if (count != messageLength) {
+                    System.out.println("Bytes read = " + count + " Message length = " + messageLength);
+                }
+//            System.out.println(messageType + messagePayload.toString());
+                receiverSocketHandler.onReceivedMessage(peerId, messageType, messagePayload);
+
+            } catch (SocketTimeoutException se) {
                 return;
+            } catch (IOException e) {
+                e.printStackTrace();
             }
-//            System.out.println(Arrays.toString(lengthBytes));
-            int messageLength = ByteUtils.readMessageLength(lengthBytes);
-            System.out.println("Incoming message length = " + messageLength);
-
-            byte messageType = in.readByte();
-
-            byte[] messagePayload = new byte[messageLength];
-            count = in.read(messagePayload);
-            if (count != messageLength) {
-                System.out.println("Bytes read = " + count + " Message length = " + messageLength);
-            }
-            receiverSocketHandler.onReceivedMessage(peerId, messageType, messagePayload);
-
-        } catch (SocketTimeoutException se) {
-            return;
-        } catch (IOException e) {
-        e.printStackTrace();
-    }
+        }
     }
 
     public String getPeerFromHandshakeMessage(byte[] bytes) {
@@ -98,14 +101,14 @@ public class PeerConnection {
         sendMessage(handshakeMessage.getMessage());
     }
 
-    public void sendMessage(byte[] msg)
-    {
-        try{
-            out.write(msg);
-            out.flush();
-        }
-        catch(IOException ioException){
-            ioException.printStackTrace();
+    public void sendMessage(byte[] msg) {
+        synchronized (out) {
+            try {
+                out.write(msg);
+                out.flush();
+            } catch (IOException ioException) {
+                ioException.printStackTrace();
+            }
         }
     }
 
@@ -113,6 +116,7 @@ public class PeerConnection {
         try {
             this.socket = new Socket(hostName, portNum);
             this.socket.setSoTimeout(SO_TIMEOUT);
+            this.socket.setTcpNoDelay(true);
             setupStreams();
         } catch (IOException e) {
             return false;

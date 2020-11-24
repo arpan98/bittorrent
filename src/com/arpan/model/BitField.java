@@ -1,4 +1,4 @@
-package com.arpan;
+package com.arpan.model;
 
 import java.util.BitSet;
 
@@ -28,6 +28,10 @@ public class BitField {
                 return true;
         }
         return false;
+    }
+
+    public boolean hasCompleteFile() {
+        return size == bitField.cardinality();
     }
 
     public byte[] toByteArray() {

@@ -1,4 +1,6 @@
-package com.arpan;
+package com.arpan.util;
+
+import com.arpan.model.PeerInfo;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -31,14 +33,13 @@ public class Config {
         }
     }
 
-    // Returns true if this peer has the file
-    public List<PeerInfo> readPeerInfo(String peerId, String fileName) throws FileNotFoundException {
+    public List<PeerInfo> readPeerInfo(String fileName) throws FileNotFoundException {
         File configFile = new File(fileName);
         Scanner sc = new Scanner(configFile);
         List<PeerInfo> peerInfoList = new ArrayList<>();
         while (sc.hasNextLine()) {
             String data = sc.nextLine();
-            peerInfoList.add(readPeerInfoConfigLine(peerId, data));
+            peerInfoList.add(readPeerInfoConfigLine(data));
         }
         return peerInfoList;
     }
@@ -56,12 +57,8 @@ public class Config {
         }
     }
 
-    // Returns true if this peer has the file
-    public PeerInfo readPeerInfoConfigLine(String peerId, String configLine) {
-
-        PeerInfo peerInfo = new PeerInfo(configLine);
-
-        return peerInfo;
+    public PeerInfo readPeerInfoConfigLine(String configLine) {
+        return new PeerInfo(configLine);
     }
 
     public int getNumberOfPreferredNeighbors() {

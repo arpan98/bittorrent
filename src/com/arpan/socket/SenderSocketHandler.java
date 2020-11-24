@@ -1,5 +1,7 @@
-package com.arpan;
+package com.arpan.socket;
 
+import com.arpan.Peer;
+import com.arpan.model.PeerInfo;
 import com.arpan.message.HandshakeMessage;
 
 import java.util.Map;
