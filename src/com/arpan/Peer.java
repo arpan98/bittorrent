@@ -1,9 +1,8 @@
 package com.arpan;
 
 import com.arpan.log.LoggingThread;
-import com.arpan.message.BitfieldMessage;
-import com.arpan.message.InterestedMessage;
-import com.arpan.message.NotInterestedMessage;
+import com.arpan.message.*;
+
 
 import java.io.IOException;
 import java.io.*;
