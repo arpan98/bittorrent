@@ -1,7 +1,6 @@
 package com.arpan.timertask;
 
 import com.arpan.Peer;
-import com.arpan.util.Config;
 
 import java.util.List;
 import java.util.Random;
@@ -27,6 +26,7 @@ public class OptimisticUnchokingTask extends TimerTask {
                 .collect(Collectors.toList());
 
         Random rand = new Random();
-        peer.setOptimisticallyUnchokedNeighbor(options.get(rand.nextInt(options.size())));
+        if (options.size() > 0)
+            peer.setOptimisticallyUnchokedNeighbor(options.get(rand.nextInt(options.size())));
     }
 }

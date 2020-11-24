@@ -3,6 +3,7 @@ package com.arpan.socket;
 import com.arpan.Peer;
 import com.arpan.model.PeerInfo;
 import com.arpan.message.HandshakeMessage;
+import com.arpan.util.ByteUtils;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -45,6 +46,7 @@ public class SenderSocketHandler {
     }
 
     public void sendMessage(String peerId, byte[] message) {
+        ByteUtils.printBits(message);
         PeerConnection peerConnection = peerConnectionMap.get(peerId);
         if (peerConnection != null) {
             peerConnection.sendMessage(message);

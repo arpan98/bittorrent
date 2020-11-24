@@ -3,6 +3,7 @@ package com.arpan;
 import com.arpan.log.LoggingThread;
 import com.arpan.message.*;
 import com.arpan.model.BitField;
+import com.arpan.model.FilePiece;
 import com.arpan.model.PeerInfo;
 import com.arpan.model.State;
 import com.arpan.socket.PeerConnection;
@@ -10,11 +11,21 @@ import com.arpan.socket.ReceiverSocketHandler;
 import com.arpan.socket.SenderSocketHandler;
 import com.arpan.timertask.OptimisticUnchokingTask;
 import com.arpan.timertask.PreferredNeighborsTask;
+import com.arpan.util.ByteUtils;
 import com.arpan.util.Config;
+import com.arpan.util.FileUtil;
 
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+
+import java.io.*;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -24,11 +35,14 @@ public class Peer {
 
     private static final String COMMON_CONFIG = "cfg/Common.cfg";
     private static final String PEER_INFO_CONFIG = "cfg/PeerInfo.cfg";
-
+    private static final String FOLDER_PATH = "peer_";
     private final String peerId;
     public int portNum;
     private boolean hasFile;
     private BitField bitField;
+    private FilePiece[] filePieces;
+    private String folderPath;
+    private FileUtil fileUtil;
 
     private final ExecutorService executor = Executors.newFixedThreadPool(3);
 
@@ -43,6 +57,8 @@ public class Peer {
     private final Map<String, Boolean> iAmInterestedInMap = new ConcurrentHashMap<>();
     private final Map<String, Boolean> interestedInMeMap = new ConcurrentHashMap<>();
     public final Map<String, Float> peerDownloadRateMap = new ConcurrentHashMap<>();
+
+    private final Set<Integer> requestedPieces = ConcurrentHashMap.newKeySet();
 
     private final LinkedBlockingQueue<String> logQueue = new LinkedBlockingQueue<>();
 
@@ -66,6 +82,23 @@ public class Peer {
             List<PeerInfo> peerInfoList = config.readPeerInfo(PEER_INFO_CONFIG);
             processPeerInfo(peerId, peerInfoList, num_pieces);
             bitField = new BitField(hasFile, num_pieces);
+            filePieces = new FilePiece[num_pieces]; //array storing the bytes for each piece.
+            // create folder for peer
+            folderPath = FOLDER_PATH + peerId;
+            File file = new File(folderPath);
+            if(file.mkdir()){
+                System.out.println("Directory created successfully for " + peerId);
+            }else{
+                System.out.println("Sorry couldn't create specified directory for "+ peerId);
+            }
+
+            //if peer has file, add data file to its folder and copy bytes to filePieces array
+            fileUtil = new FileUtil(peerId, config.getFileName());
+            if(hasFile){
+                fileUtil.copyContent(peerId);
+                filePieces = fileUtil.getPieces(peerId, num_pieces, config.getPieceSize());
+            }
+
 
             String logFileName = "log_peer_" + peerId + ".log";
             LoggingThread loggingThread = new LoggingThread(logQueue, logFileName);
@@ -79,7 +112,7 @@ public class Peer {
             connectToPeers(peerInfoList);
             startTimerTasks(config);
 
-        } catch (IOException e) {
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
@@ -184,6 +217,57 @@ public class Peer {
     public void handleUnchokeMessage(String otherId) {
         log(String.format("Peer %s is unchoked by %s.", this.peerId, otherId));
         receiveStateMap.put(otherId, State.UNCHOKED);
+
+        sendRequest(otherId);
+    }
+
+    public void handleHaveMessage(String otherId, HaveMessage haveMessage) {
+        log(String.format("Peer %s received the 'have' message from %s for the piece %d", this.peerId, otherId, haveMessage.getPieceIndex()));
+    }
+
+    public void handleRequestMessage(String otherId, RequestMessage requestMessage){
+        if (sendStateMap.get(otherId).equals(State.UNCHOKED)) { //check for choke or optimistic
+            int pieceRequired = ByteBuffer.wrap(requestMessage.getRequestMessage()).order(ByteOrder.BIG_ENDIAN).getInt();
+            byte[] pieceRequestedInBytes = requestMessage.getRequestMessage();
+            byte[] payLoad = filePieces[pieceRequired].getData();
+
+            ByteBuffer messagePayload = ByteBuffer.allocate(pieceRequestedInBytes.length + payLoad.length);
+            messagePayload.put(pieceRequestedInBytes, 0, pieceRequestedInBytes.length);
+            messagePayload.put(payLoad, 0, payLoad.length);
+            PieceMessage pieceMessage = new PieceMessage(messagePayload.array());
+            senderSocketHandler.sendMessage(otherId, pieceMessage.getMessage());
+        }
+    }
+
+    public Integer handlePieceMessage(String otherId, PieceMessage message) {
+        byte[] messagePayload = message.getPieceMessage();
+
+        int pieceIndex = ByteBuffer.wrap(Arrays.copyOfRange(messagePayload, 0, 4)).order(ByteOrder.BIG_ENDIAN).getInt();
+        BitField peerBitfield = peerBitfieldMap.get(otherId);
+        if (peerBitfield.getBitFieldBit(pieceIndex) && !this.bitField.getBitFieldBit(pieceIndex)) {
+            byte[] piece = Arrays.copyOfRange(messagePayload, 4, messagePayload.length);
+            filePieces[pieceIndex] = new FilePiece(piece); // added piece to filePieces
+
+            //Set bit to 1
+            this.bitField.setBitFieldBit(pieceIndex);
+
+            log(String.format("Peer %s has downloaded the piece %d from %s. Now the number of pieces it has is %d",
+                    this.peerId, pieceIndex, otherId, this.bitField.getCardinality()));
+
+            // If all are received, merge the file.
+            if(this.bitField.getCardinality() == this.filePieces.length) // checks if all bits are set
+                try{
+                    fileUtil.constructFile(this);
+                    hasFile = true;
+                    log(String.format("Peer %s has downloaded the complete file.", this.peerId));
+                }
+                catch(IOException e){
+                    System.out.println("Error in creating file");
+                    e.printStackTrace();
+                }
+            return pieceIndex;
+        }
+        return null;
     }
 
     /**************  SEND MESSAGES  ********************/
@@ -220,6 +304,26 @@ public class Peer {
         senderSocketHandler.sendMessage(otherId, unchokeMessage.getMessage());
         sendStateMap.put(otherId, State.UNCHOKED);
         System.out.println("Sent unchoke to " + otherId);
+    }
+
+    public void sendRequest(String otherId){
+        Integer nextPieceNeeded = findNextPieceNeeded(otherId);
+
+        if (nextPieceNeeded != null) {
+            requestedPieces.add(nextPieceNeeded);
+            System.out.println(this.peerId + " requesting " + nextPieceNeeded + "th piece from " + otherId);
+            // Send the request message for the next piece needed
+            RequestMessage requestMessage = new RequestMessage(ByteBuffer.allocate(4).order(ByteOrder.BIG_ENDIAN).putInt(nextPieceNeeded).array());
+            senderSocketHandler.sendMessage(otherId, requestMessage.getMessage());
+        }
+    }
+
+    public void broadcastHaveRequest(int pieceIndex){
+        HaveMessage haveMessage = new HaveMessage(pieceIndex);
+        for(String connectedPeer : sendStateMap.keySet()){
+            senderSocketHandler.sendMessage(connectedPeer, haveMessage.getMessage());
+            System.out.println("Sent have [" + pieceIndex + "] message to " + connectedPeer);
+        }
     }
 
     public void setPreferredNeighbors(List<String> preferredNeighbors) {
@@ -271,7 +375,25 @@ public class Peer {
         return bitField.hasCompleteFile();
     }
 
+    private  Integer findNextPieceNeeded(String otherId) {
+        for (int i = 0; i < this.filePieces.length ; i++) {
+            if (!this.bitField.getBitFieldBit(i) && peerBitfieldMap.get(otherId).getBitFieldBit(i)
+                && !requestedPieces.contains(i)) {
+                return i;
+            }
+        }
+        return null;
+    }
+
+    public FilePiece[] getFilePieces() {
+        return filePieces;
+    }
+
     public String getPeerId() {
         return peerId;
+    }
+
+    public boolean getHasFile(){
+        return hasFile;
     }
 }

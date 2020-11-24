@@ -12,7 +12,7 @@ public enum MessageType {
 
     private final byte value;
 
-    private MessageType(byte value) {
+    MessageType(byte value) {
         this.value = value;
     }
 

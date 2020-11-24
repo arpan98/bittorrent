@@ -1,11 +1,9 @@
 package com.arpan.log;
 
 import java.io.IOException;
-import java.util.Queue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.logging.FileHandler;
 import java.util.logging.Logger;
-import java.util.logging.SimpleFormatter;
 
 public class LoggingThread extends Thread {
 

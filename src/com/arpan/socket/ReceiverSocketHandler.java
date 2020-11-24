@@ -1,8 +1,7 @@
 package com.arpan.socket;
 
 import com.arpan.Peer;
-import com.arpan.message.BitfieldMessage;
-import com.arpan.message.MessageType;
+import com.arpan.message.*;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -52,16 +51,31 @@ public class ReceiverSocketHandler {
             peer.handleNotInterestedMessage(peerId);
         }
         else if (typeByte == MessageType.HAVE.getValue()) {
-
+            HaveMessage haveMessage  = new HaveMessage(messagePayload);
+            peer.handleHaveMessage(peerId, haveMessage);
         }
         else if (typeByte == MessageType.BITFIELD.getValue()) {
             BitfieldMessage bitfieldMessage = new BitfieldMessage(messagePayload);
             peer.handleBitfieldMessage(peerId, bitfieldMessage);
         }
         else if (typeByte == MessageType.REQUEST.getValue()) {
-
+            RequestMessage requestMessage = new RequestMessage(messagePayload);
+            peer.handleRequestMessage(peerId, requestMessage);
         }
         else if (typeByte == MessageType.PIECE.getValue()) {
+            PieceMessage pieceMessage = new PieceMessage(messagePayload);
+            Integer pieceIndex = peer.handlePieceMessage(peerId, pieceMessage); // peerId is the other peer who we are connected to.
+            if(pieceIndex!=null){
+                //ie piece is received and set
+                //send have to all
+                peer.broadcastHaveRequest(pieceIndex);
+
+                //send request for other pieces
+                if(!peer.getHasFile()){
+                    peer.sendRequest(peerId);
+                }
+
+            }
 
         }
     }

@@ -39,6 +39,7 @@ public final class ByteUtils {
             sb.append("]\n");
             resultSb.append(sb);
         }
-        System.out.println(resultSb.toString());
+//        System.out.println(resultSb.toString());
+        System.out.println("Bytes Length = " + bytes.length);
     }
 }

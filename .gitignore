@@ -1,3 +1,6 @@
+# Peer folders
+peer_*
+
 # Compiled class file
 *.class
 

@@ -18,6 +18,8 @@ public class PeerConnection {
 
     private ObjectInputStream in;	    //stream read from the socket
     private ObjectOutputStream out;     //stream write to the socket
+    private final Object inLock = new Object();
+    private final Object outLock = new Object();
     private Socket socket;
     private boolean isHandshakeDone;
     private String peerId;
@@ -31,7 +33,7 @@ public class PeerConnection {
         this.socket = socket;
         try {
             this.socket.setSoTimeout(SO_TIMEOUT);
-            this.socket.setTcpNoDelay(true);
+//            this.socket.setTcpNoDelay(true);
         } catch (SocketException e) {
             e.printStackTrace();
         }
@@ -43,19 +45,22 @@ public class PeerConnection {
         byte[] data = new byte[32];
         if (isHandshakeDone)
             return peerId;
-        while (true) {
-            try {
-                int count = in.read(data);
-                if (count == 32) {
-                    String handshakeHeader = new String(data, 0, 18, StandardCharsets.ISO_8859_1);
-                    if (handshakeHeader.equals(HandshakeMessage.HANDSHAKE_HEADER)) {
-                        isHandshakeDone = true;
-                        peerId = getPeerFromHandshakeMessage(data);
-                        return peerId;
+        synchronized (inLock) {
+            while (true) {
+                try {
+                    int count = in.read(data);
+                    if (count == 32) {
+                        String handshakeHeader = new String(data, 0, 18, StandardCharsets.ISO_8859_1);
+                        if (handshakeHeader.equals(HandshakeMessage.HANDSHAKE_HEADER)) {
+                            isHandshakeDone = true;
+                            peerId = getPeerFromHandshakeMessage(data);
+                            return peerId;
+                        }
                     }
+                } catch (SocketTimeoutException ignored) {
+                } catch (IOException e) {
+                    e.printStackTrace();
                 }
-            } catch (IOException e) {
-                e.printStackTrace();
             }
         }
     }
@@ -64,29 +69,31 @@ public class PeerConnection {
         if (!isHandshakeDone)
             return;
 //        System.out.println("Trying receive from " + peerId);
-        synchronized (in) {
+        synchronized (inLock) {
             byte[] lengthBytes = new byte[4];
             try {
                 int count = in.read(lengthBytes);
                 if (count != 4) {
-//                System.out.println("Message length is " + count + " bytes, should be 4 bytes");
+                    if (count != -1)
+                        System.out.println("Message length is " + count + " bytes, should be 4 bytes");
                     return;
                 }
                 int messageLength = ByteUtils.readMessageLength(lengthBytes);
-//            System.out.println("Incoming message length = " + messageLength);
+                System.out.println("Incoming message length = " + messageLength);
 
                 byte messageType = in.readByte();
 
                 byte[] messagePayload = new byte[messageLength];
-                count = in.read(messagePayload);
-                if (count != messageLength) {
-                    System.out.println("Bytes read = " + count + " Message length = " + messageLength);
+                count = 0;
+                while (count != messageLength) {
+                    count += in.read(messagePayload, count, messageLength-count);
+//                    System.out.println("Bytes read = " + count + " Message length = " + messageLength);
                 }
-//            System.out.println(messageType + messagePayload.toString());
+                System.out.println("Message type = " + messageType);
+                ByteUtils.printBits(messagePayload);
                 receiverSocketHandler.onReceivedMessage(peerId, messageType, messagePayload);
 
-            } catch (SocketTimeoutException se) {
-                return;
+            } catch (SocketTimeoutException ignored) {
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -102,7 +109,7 @@ public class PeerConnection {
     }
 
     public void sendMessage(byte[] msg) {
-        synchronized (out) {
+        synchronized (outLock) {
             try {
                 out.write(msg);
                 out.flush();
@@ -116,7 +123,7 @@ public class PeerConnection {
         try {
             this.socket = new Socket(hostName, portNum);
             this.socket.setSoTimeout(SO_TIMEOUT);
-            this.socket.setTcpNoDelay(true);
+//            this.socket.setTcpNoDelay(true);
             setupStreams();
         } catch (IOException e) {
             return false;
