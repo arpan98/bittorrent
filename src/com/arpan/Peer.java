@@ -6,6 +6,10 @@ import com.arpan.message.InterestedMessage;
 import com.arpan.message.NotInterestedMessage;
 
 import java.io.IOException;
+import java.io.*;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -17,11 +21,14 @@ public class Peer {
 
     private static final String COMMON_CONFIG = "cfg/Common.cfg";
     private static final String PEER_INFO_CONFIG = "cfg/PeerInfo.cfg";
-
+    private static final String FOLDER_PATH = "peers/";
     private final String peerId;
     public int portNum;
     private boolean hasFile;
     private BitField bitField;
+    private FilePiece[] filePieces;
+    private String folderPath;
+    private FileUtil fileUtil;
 
     private final ExecutorService executor = Executors.newFixedThreadPool(3);
 
@@ -55,8 +62,26 @@ public class Peer {
             List<PeerInfo> peerInfoList = config.readPeerInfo(peerId, PEER_INFO_CONFIG);
             processPeerInfo(peerId, peerInfoList, num_pieces);
             bitField = new BitField(hasFile, num_pieces);
+            filePieces = new FilePiece[num_pieces]; //array storing the bytes for each piece.
+            // create folder for peer
+            folderPath = FOLDER_PATH + peerId;
+            File file = new File(folderPath);
+            if(file.mkdir()){
+                System.out.println("Directory created successfully for " + peerId);
+            }else{
+                System.out.println("Sorry couldn’t create specified directory for "+ peerId);
+            }
 
-            String logFileName = "log_peer_" + peerId + ".log";
+            //if peer has file, add data file to its folder and copy bytes to filePieces array
+            System.out.println(hasFile);
+            fileUtil = new FileUtil(peerId);
+            if(hasFile){
+                fileUtil.copyContent(peerId);
+                filePieces = fileUtil.getPieces(peerId, num_pieces, config.getPieceSize());
+            }
+
+
+            String logFileName = folderPath+ "/log_peer_" + peerId + ".log";
             LoggingThread loggingThread = new LoggingThread(logQueue, logFileName);
             executor.execute(loggingThread::startLogging);
 
@@ -68,6 +93,8 @@ public class Peer {
             connectToPeers(peerInfoList);
 
         } catch (IOException e) {
+            e.printStackTrace();
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
@@ -183,7 +210,84 @@ public class Peer {
         }
     }
 
+    public Integer handlePieceMessage(String otherId, PieceMessage message) {
+        byte[] messagePayload = message.getPieceMessage();
+
+        Integer pieceIndex = ByteBuffer.wrap(Arrays.copyOfRange(messagePayload, 0, 4)).order(ByteOrder.BIG_ENDIAN).getInt();
+        BitField peerBitfield = peerBitfieldMap.get(otherId);
+        if (peerBitfield.getBitFieldBit(pieceIndex) && !this.bitField.getBitFieldBit(pieceIndex)) {
+            byte[] piece = Arrays.copyOfRange(messagePayload, 4, messagePayload.length);
+            filePieces[pieceIndex] = new FilePiece(piece); // added piece to filePieces
+
+            //Set bit to 1
+            this.bitField.setBitFieldBit(pieceIndex);
+
+            // If all are received, merge the file.
+            if(this.bitField.getCardinality() == this.filePieces.length) // checks if all bits are set
+                try{
+                    fileUtil.constructFile(this);
+                    hasFile = true;
+                }
+                catch(IOException e){
+                    System.out.println("Error in creating file");
+                    e.printStackTrace();
+                }
+            return pieceIndex;
+        }
+        return null;
+    }
+
+    public void broadcastHaveRequest(){
+        BitfieldMessage bitfieldMessage = new BitfieldMessage(bitField.toByteArray());
+        for(String connectedPeer : peerStateMap.keySet()){
+            senderSocketHandler.sendMessage(connectedPeer, bitfieldMessage.getMessage());
+            System.out.println("Sent bitfield to " + connectedPeer);
+        }
+    }
+    public void sendRequest(String otherId){
+        Integer nextPieceNeeded = findNextPieceNeeded(otherId);
+        System.out.println(this.peerId + " requesting "+nextPieceNeeded+"th bit from "+otherId);
+
+        if (nextPieceNeeded != null) {
+            // Send the request message for the next piece needed
+            RequestMessage requestMessage = new RequestMessage(ByteBuffer.allocate(4).order(ByteOrder.BIG_ENDIAN).putInt(nextPieceNeeded).array());
+            senderSocketHandler.sendMessage(otherId, requestMessage.getRequestMessage());
+        }
+    }
+
+    public void handleRequestMessage(String otherId, RequestMessage requestMessage){
+        if (true) { //check for choke or optimistic
+            int pieceRequired = ByteBuffer.wrap(requestMessage.getRequestMessage()).order(ByteOrder.BIG_ENDIAN).getInt();
+            byte[] pieceRequestedInBytes = requestMessage.getRequestMessage();
+            byte[] payLoad = filePieces[pieceRequired].getData();
+
+
+            ByteBuffer messagePayload = ByteBuffer.allocate(pieceRequestedInBytes.length + payLoad.length);
+            messagePayload.put(pieceRequestedInBytes, 0, pieceRequestedInBytes.length);
+            messagePayload.put(payLoad, 0, payLoad.length);
+            PieceMessage pieceMessage = new PieceMessage(messagePayload.array());
+            senderSocketHandler.sendMessage(otherId, pieceMessage.getPieceMessage());
+        }
+    }
+
+    private  Integer findNextPieceNeeded(String otherId) {
+        for (int i = 0; i < this.filePieces.length ; i++) {
+            if (!this.bitField.getBitFieldBit(i) && peerBitfieldMap.get(otherId).getBitFieldBit(i)) {
+                return i;
+            }
+        }
+        return null;
+
+    }
+    public FilePiece[] getFilePieces() {
+        return filePieces;
+    }
+
     public String getPeerId() {
         return peerId;
+    }
+
+    public boolean getHashFile(){
+        return hasFile;
     }
 }
