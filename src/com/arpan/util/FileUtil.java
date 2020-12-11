@@ -68,6 +68,8 @@ public class FileUtil {
     }
 
     public void constructFile(Peer peer) throws IOException {
+
+        System.out.println("Building file in "+ peer.getPeerId());
         //writing all bits to file and creating the file
         File outFile = new File(destination);
         try (FileOutputStream fos = new FileOutputStream(outFile)) {

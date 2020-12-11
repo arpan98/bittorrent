@@ -1,5 +1,7 @@
 package com.arpan.message;
 
+import java.io.DataOutputStream;
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
@@ -18,5 +20,11 @@ public class HaveMessage extends Message {
 
     public int getPieceIndex() {
         return ByteBuffer.wrap(messagePayload).order(ByteOrder.BIG_ENDIAN).getInt();
+    }
+
+    public void sendHaveMessage(DataOutputStream out) throws IOException
+    {
+        out.write(getMessage());
+        out.flush();
     }
 }

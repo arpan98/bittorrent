@@ -3,7 +3,7 @@ package com.arpan.model;
 import java.util.BitSet;
 
 public class BitField {
-    private final BitSet bitField; // removed final as it needs to be set
+    private BitSet bitField; // removed final as it needs to be set
     // final object methods can be called later
     private final int size;
 
@@ -14,12 +14,12 @@ public class BitField {
         if (hasFile) {
             bitField.set(0, size);
         }
-       // System.out.println(hasFile +" " + bitField.toString());
+        //System.out.println(hasFile +" " + bitField.toString());
 
     }
 
     public void setBits(byte[] bytes) {
-        System.out.println(bytes.toString());
+        //System.out.println(bytes.toString());
         for (int i = 0; i < size; i++) {
             if ((bytes[i/8] & (1<<(i%8))) != 0) {
                 bitField.set(i);
@@ -53,6 +53,13 @@ public class BitField {
 
     public byte[] toByteArray() {
         return bitField.toByteArray();
+    }
+
+    public BitSet getBitField() {
+        return bitField;
+    }
+    public void setBitField(BitSet bitField){
+        this.bitField = bitField;
     }
 
 }

@@ -2,10 +2,15 @@ package com.arpan.message;
 
 import com.arpan.util.ByteUtils;
 
-public abstract class Message implements MessageInterface {
+public class Message implements MessageInterface {
     protected int messageLength;
     protected byte messageType;
     protected byte[] messagePayload;
+    public Message(){}
+    public Message(byte messageType, byte[] messagePayload) {
+        this.messageType = messageType;
+        this.messagePayload = messagePayload;
+    }
 
     @Override
     public byte[] getMessage() {
@@ -24,4 +29,5 @@ public abstract class Message implements MessageInterface {
     public byte[] getMessagePayload() {
         return messagePayload;
     }
+
 }

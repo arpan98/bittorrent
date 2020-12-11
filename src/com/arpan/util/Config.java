@@ -6,7 +6,9 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Scanner;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class Config {
 
@@ -33,15 +35,16 @@ public class Config {
         }
     }
 
-    public List<PeerInfo> readPeerInfo(String fileName) throws FileNotFoundException {
+    public Map<String,PeerInfo> readPeerInfo(String fileName) throws FileNotFoundException {
         File configFile = new File(fileName);
         Scanner sc = new Scanner(configFile);
-        List<PeerInfo> peerInfoList = new ArrayList<>();
+        Map<String, PeerInfo> peerInfoMap = new ConcurrentHashMap<>();
         while (sc.hasNextLine()) {
             String data = sc.nextLine();
-            peerInfoList.add(readPeerInfoConfigLine(data));
+            PeerInfo peer = readPeerInfoConfigLine(data);
+            peerInfoMap.put(peer.peerId, peer);
         }
-        return peerInfoList;
+        return peerInfoMap;
     }
 
     public void readCommonConfigLine(String configLine) {
