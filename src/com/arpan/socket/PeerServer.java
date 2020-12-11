@@ -37,8 +37,8 @@ public class PeerServer extends Thread{
         ServerSocket server = null;
         try {
             // Start the schedulers.
-            host.log(String.format("Peer %s starting its server ", host.getPeerId()));
-            host.log(String.format("Peer %s starting timer tasks", host.getPeerId()));
+//            host.log(String.format("Peer %s starting its server ", host.getPeerId()));
+//            host.log(String.format("Peer %s starting timer tasks", host.getPeerId()));
             startTimerTasks(host.config);
 
             server = new ServerSocket(host.portNum);
@@ -93,12 +93,12 @@ public class PeerServer extends Thread{
                 peer.outstream = outStream;
                 peer.socket = socket;
                 connectedPeerMap.put(peer.peerId, peer);
-                host.log(String.format("Peer %s connected to peer %s ", host.getPeerId(), peer.peerId));
+                host.log(String.format("Peer %s is connected from Peer %s ", host.getPeerId(), peer.peerId));
 
                 MessageUtil.sendBitfield(outStream, host.getBitField().getBitField());
-                host.log(String.format("Peer %s sending bitfield to peer %s ", host.getPeerId(), peer.peerId));
+//                host.log(String.format("Peer %s sending bitfield to peer %s ", host.getPeerId(), peer.peerId));
 
-                host.log(String.format("Peer %s starting messenger for all other tasks", host.getPeerId()));
+//                host.log(String.format("Peer %s starting messenger for all other tasks", host.getPeerId()));
 
                 Messenger messenger = new Messenger(host, peer, peerInfoMap, inStream, outStream);
 

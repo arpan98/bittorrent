@@ -36,7 +36,7 @@ public class OptimisticUnchokingTask extends TimerTask {
     }
 
     public void setOptimisticallyUnchokedNeighbor(String otherId) {
-        //log(String.format("Peer %s has the optimistically unchoked neighbor %s.", this.peerId, otherId));
+        peer.log(String.format("Peer %s has the optimistically unchoked neighbor %s.", peer.getPeerId(), otherId));
         sendUnchoke(otherId);
     }
 

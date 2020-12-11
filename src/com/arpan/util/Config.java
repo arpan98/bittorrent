@@ -51,12 +51,24 @@ public class Config {
         String variableName = configLine.split(" ")[0];
         String value = configLine.split(" ")[1];
         switch (variableName) {
-            case NumberOfPreferredNeighbors -> numberOfPreferredNeighbors = Integer.parseInt(value);
-            case UnchokingInterval -> unchokingInterval = Integer.parseInt(value);
-            case OptimisticUnchokingInterval -> optimisticUnchokingInterval = Integer.parseInt(value);
-            case FileName -> fileName = value;
-            case FileSize -> fileSize = Long.parseLong(value);
-            case PieceSize -> pieceSize = Integer.parseInt(value);
+            case NumberOfPreferredNeighbors:
+                numberOfPreferredNeighbors = Integer.parseInt(value);
+                break;
+            case UnchokingInterval:
+                unchokingInterval = Integer.parseInt(value);
+                break;
+            case OptimisticUnchokingInterval:
+                optimisticUnchokingInterval = Integer.parseInt(value);
+                break;
+            case FileName:
+                fileName = value;
+                break;
+            case FileSize:
+                fileSize = Long.parseLong(value);
+                break;
+            case PieceSize:
+                pieceSize = Integer.parseInt(value);
+                break;
         }
     }
 

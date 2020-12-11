@@ -16,8 +16,5 @@ default:
 clean:
 	rm -rf ${CLASS_PATH}
 
-run1:
-	cd src & java -cp out com.arpan.Main 1001
-
-run2:
-	cd src & java -cp out com.arpan.Main 1002
+run:
+	cd src & java -cp out com.arpan.peerProcess $(peerId)

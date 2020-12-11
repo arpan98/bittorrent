@@ -55,22 +55,23 @@ public class PeerClient extends Thread{
                 peer.socket = socket;
                 peer.outstream = outStream;
                 connectedPeerMap.put(peer.peerId, peer);
+                host.log("Peer " + host.getPeerId() + " makes a connection to Peer " + peer.peerId);
                 //Send handshake,validate it and send bitfield
                 HandshakeMessage handshakeMsg = new HandshakeMessage(host.getPeerId());
                 handshakeMsg.sendHandshake(outStream);
                 HandshakeMessage recvdHandshake = new HandshakeMessage();
                 while (true) {
                     if(recvdHandshake.recvHandshake(inStream, peer.peerId)) {
-                        host.log("Handshake received from"+ peer.peerId);
+//                        host.log("Handshake received from"+ peer.peerId);
                         break;
 
                     }
-                    host.log("rrect handshake received");
+//                    host.log("rrect handshake received");
                 }
                 peerInfoMap.put(peer.peerId, peer);
 
                 //Sending bitfield message
-                host.log("Bitfield being sent" + peer.peerId +" bitfield:::" + host.getBitField().toByteArray());
+//                host.log("Bitfield being sent" + peer.peerId +" bitfield:::" + host.getBitField().toByteArray());
                 MessageUtil.sendBitfield(outStream, host.getBitField().getBitField());
 
                 //Initalphase done, now the client waits for the messages

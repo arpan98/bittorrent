@@ -92,17 +92,17 @@ public class Peer {
 
             File file = new File(folderPath);
             if (file.mkdir()) {
-                log(String.format("Directory created successfully for  %s ", this.getPeerId()));
+//                log(String.format("Directory created successfully for  %s ", this.getPeerId()));
 
             } else {
-                log(String.format("Could not creat directory for %s ", this.getPeerId()));
+//                log(String.format("Could not creat directory for %s ", this.getPeerId()));
 
             }
 
             //if peer has file, add data file to its folder and copy bytes to filePieces array
             fileUtil = new FileUtil(peerId, config.getFileName());
             if (hasFile) {
-                fileUtil.copyContent(peerId);
+//                fileUtil.copyContent(peerId);
                 filePieces = fileUtil.getPieces(peerId, num_pieces, config.getPieceSize());
             }
 
@@ -110,11 +110,11 @@ public class Peer {
 
 
             Map<String, PeerInfo> connectedPeerMap = new ConcurrentHashMap<>();
-            PeerClient peerClient = new PeerClient(this, peerInfoMap, connectedPeerMap);
+            peerClient = new PeerClient(this, peerInfoMap, connectedPeerMap);
             peerClient.start();
 
 
-            PeerServer peerServer = new PeerServer(this, peerInfoMap, connectedPeerMap);
+            peerServer = new PeerServer(this, peerInfoMap, connectedPeerMap);
             peerServer.start();
 
         } catch (Exception e) {
@@ -124,10 +124,11 @@ public class Peer {
 
 
     public void exit(){
-        peerServer.kill();
-        peerServer.stop();
-        peerClient.stop();
-        System.exit(-1);
+        System.out.println("EXIT");
+//        peerServer.kill();
+//        peerServer.stop();
+//        peerClient.stop();
+        System.exit(0);
         //write exit code here ///
 
     }

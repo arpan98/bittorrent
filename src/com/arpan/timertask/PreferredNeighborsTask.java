@@ -65,7 +65,7 @@ public class PreferredNeighborsTask extends TimerTask {
         UnchokeMessage unchokeMessage = new UnchokeMessage();
         try {
             unchokeMessage.sendUnChokeMessage(peerInfoMap.get(otherId).outstream);
-            peer.log(String.format("Peer %s sending unchoke message to %s ",peer.getPeerId(), otherId));
+//            peer.log(String.format("Peer %s sending unchoke message to %s ",peer.getPeerId(), otherId));
 
         }
         catch(Exception e){
@@ -98,7 +98,7 @@ public class PreferredNeighborsTask extends TimerTask {
             e.printStackTrace();
         }
         peer.getSendStateMap().put(otherId, State.CHOKED);
-        peer.log(String.format("Peer %s sending choke message to %s ",peer.getPeerId(), otherId));
+//        peer.log(String.format("Peer %s sending choke message to %s ",peer.getPeerId(), otherId));
         //System.out.println(peer.getPeerId() + "Sent choke to " + otherId);
     }
 }

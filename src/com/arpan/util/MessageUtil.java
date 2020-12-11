@@ -14,6 +14,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.Arrays;
 import java.util.BitSet;
+import java.util.Map;
 
 public class MessageUtil {
     public static String HandShakeAndResponse(DataInputStream in, DataOutputStream out, String peerId)
@@ -45,29 +46,29 @@ public class MessageUtil {
         peerBitfield.setBitField(receivedBitSet);
         host.getPeerBitfieldMap().put(peer.peerId, peerBitfield);
         //System.out.println("recived bitset from " +peer.peerId +" "+BitSet.valueOf(host.getPeerBitfieldMap().get(peer.peerId).getBitField().toByteArray()).toString()) ;
-        host.log(String.format("Peer %s received bitfield message from %s - %s.", host.getPeerId(), peer.peerId, receivedBitSet.toString()));
+//        host.log(String.format("Peer %s received bitfield message from %s - %s.", host.getPeerId(), peer.peerId, receivedBitSet.toString()));
 
         if (peerBitfield.hasExtraBits(host.getBitField())) {
             InterestedMessage interestedMessage = new InterestedMessage();
             interestedMessage.sendInterestedMessage(outputStream);
-            host.log(String.format("Peer %s sent interested message to %s ", host.getPeerId(), peer.peerId));
+//            host.log(String.format("Peer %s sent interested message to %s ", host.getPeerId(), peer.peerId));
         } else {
             NotInterestedMessage notInterestedMessage = new NotInterestedMessage();
             notInterestedMessage.sendNotInterestedMessage(outputStream);
-            host.log(String.format("Peer %s sent not interested message to %s ", host.getPeerId(), peer.peerId));
+//            host.log(String.format("Peer %s sent not interested message to %s ", host.getPeerId(), peer.peerId));
         }
     }
 
     public static void handleInterestedMessage(Peer host, PeerInfo peer, DataOutputStream outputStream){
         peer.isInterested = true;
         host.getInterestedInMeMap().put(peer.peerId,true);
-        host.log(String.format("Peer %s received interested message from %s ", host.getPeerId(), peer.peerId));
+        host.log(String.format("Peer %s received the 'interested' message from %s ", host.getPeerId(), peer.peerId));
 
     }
     public static void handleNotInterestedMessage(Peer host, PeerInfo peer, DataOutputStream outputStream){
         peer.isInterested = false;
         host.getInterestedInMeMap().put(peer.peerId,false);
-        host.log(String.format("Peer %s received not interested message from %s ", host.getPeerId(), peer.peerId));
+        host.log(String.format("Peer %s received the 'not interested' message from %s ", host.getPeerId(), peer.peerId));
     }
     public static void handleChokeMessage(Peer host, PeerInfo peer, DataOutputStream outputStream) {
         host.log(String.format("Peer %s is choked by %s.", host.getPeerId(), peer.peerId));
@@ -90,7 +91,7 @@ public class MessageUtil {
             // Send the request message for the next piece needed
             RequestMessage requestMessage = new RequestMessage(ByteBuffer.allocate(4).order(ByteOrder.BIG_ENDIAN).putInt(nextPieceNeeded).array());
             requestMessage.sendRequest(outputStream);
-            host.log(String.format("Peer %s sent request to %s for piece %s.", host.getPeerId(), peer.peerId, nextPieceNeeded));
+//            host.log(String.format("Peer %s sent request to %s for piece %s.", host.getPeerId(), peer.peerId, nextPieceNeeded));
         }
 
     }
@@ -107,7 +108,7 @@ public class MessageUtil {
             PieceMessage pieceMessage = new PieceMessage(messagePayload.array());
             pieceMessage.sendPieceMessage(outputStream);
            // senderSocketHandler.sendMessage(otherId, pieceMessage.getMessage());
-            host.log(String.format("Peer %s sent piece message to %s ", host.getPeerId(), peer.peerId));
+//            host.log(String.format("Peer %s sent piece message to %s ", host.getPeerId(), peer.peerId));
 
         }
     }
@@ -132,7 +133,7 @@ public class MessageUtil {
                 try {
                     host.getFileUtil().constructFile(host);
                     host.setHasFile(true);
-                    host.log(String.format("Peer %s has downloaded the complete file.", peer.peerId));
+                    host.log(String.format("Peer %s has downloaded the complete file.", host.getPeerId()));
                 } catch (IOException e) {
                     System.out.println("Error in creating file");
                     e.printStackTrace();
@@ -143,16 +144,17 @@ public class MessageUtil {
     }
 
     public static void handleHaveMessage(Peer host, PeerInfo peer, DataOutputStream outputStream, HaveMessage message) throws IOException {
-        host.log(String.format("Peer %s received have message from %s ", host.getPeerId(), peer.peerId));
-
         //System.out.println(host.getPeerId() +" received have from " +peer.peerId);
-        Integer pieceIndex = message.getPieceIndex();
+        int pieceIndex = message.getPieceIndex();
+        host.log(String.format("Peer %s received the 'have' message from %s for the piece %d", host.getPeerId(), peer.peerId, pieceIndex));
 
         host.getPeerBitfieldMap().get(peer.peerId).getBitField().set(pieceIndex);
+//        System.out.println("cardinality " + peer.peerId + " " + host.getPeerBitfieldMap().get(peer.peerId).getCardinality());
        // System.out.println(pieceIndex + " bitfield of peer" + peer.peerId + BitSet.valueOf(host.getPeerBitfieldMap().get(peer.peerId).getBitField().toByteArray()).toString());
         if(host.getHasFile()){
-            for(BitField bitField : host.getPeerBitfieldMap().values()){
-                if(bitField.getCardinality() != host.getFilePieces().length ){
+            for(Map.Entry<String, BitField> entry : host.getPeerBitfieldMap().entrySet()){
+//                System.out.println(entry.getKey() + "Cardinality " + entry.getValue().getCardinality() + "Length " + host.getFilePieces().length);
+                if(entry.getValue().getCardinality() != host.getFilePieces().length ){
                     return;
                 }
             }
@@ -166,7 +168,6 @@ public class MessageUtil {
                 interestedMessage.sendInterestedMessage(outputStream);
             }
         }
-        host.log(String.format("Peer %s received the 'have' message from %s for the piece %d", host.getPeerId(), peer.peerId, pieceIndex));
     }
 
 
