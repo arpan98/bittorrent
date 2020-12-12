@@ -124,6 +124,7 @@ public class Peer {
 
 
     public void exit(){
+        log("Peer is exiting.");
         System.out.println("EXIT");
 //        peerServer.kill();
 //        peerServer.stop();

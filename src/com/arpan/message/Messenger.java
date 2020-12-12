@@ -8,6 +8,9 @@ import com.arpan.util.MessageUtil;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.util.Arrays;
 import java.util.Map;
 
 public class Messenger {
@@ -61,21 +64,23 @@ public class Messenger {
                 else if (message.getMessageType() == MessageType.PIECE.getValue()) {
                     PieceMessage pieceMessage = new PieceMessage(message.getMessagePayload());
                     //System.out.println(host.getPeerId() + " received piece from " + peer.peerId);
-                    Integer pieceIndex = MessageUtil.handlePieceMessage(host, peer, pieceMessage);
-                    if(pieceIndex!=null){
+                    int pieceIndex = ByteBuffer.wrap(Arrays.copyOfRange(message.messagePayload, 0, 4)).order(ByteOrder.BIG_ENDIAN).getInt();
+                    HaveMessage haveMessage = new HaveMessage(pieceIndex);
+                    for (PeerInfo connectedPeer : peerInfoMap.values()) {
+                        haveMessage.sendHaveMessage(connectedPeer.outstream);
+                        //System.out.println(host.getPeerId() + " Sent have [" + pieceIndex + "] message to " + connectedPeer);
+                    }
+                    MessageUtil.handlePieceMessage(host, peer, pieceMessage);
+//                    if(pieceIndex!=null){
                         //ie piece is received and set
                         //send have to all
-                        HaveMessage haveMessage = new HaveMessage(pieceIndex);
-                        for (PeerInfo connectedPeer : peerInfoMap.values()) {
-                            haveMessage.sendHaveMessage(connectedPeer.outstream);
-                            //System.out.println(host.getPeerId() + " Sent have [" + pieceIndex + "] message to " + connectedPeer);
-                        }
+
                         //send request for other pieces
                         if(!host.getHasFile()){
                             MessageUtil.sendRequest(host,peer,outStream);
                         }
 
-                    }
+//                    }
                 }
                 else if (message.getMessageType() == MessageType.HAVE.getValue()) {
                     HaveMessage haveMessage  = new HaveMessage(message.getMessagePayload());

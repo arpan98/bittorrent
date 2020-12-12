@@ -118,7 +118,7 @@ public class MessageUtil {
 
         int pieceIndex = ByteBuffer.wrap(Arrays.copyOfRange(messagePayload, 0, 4)).order(ByteOrder.BIG_ENDIAN).getInt();
         BitField peerBitfield = host.getPeerBitfieldMap().get(peer.peerId);
-        if (peerBitfield.getBitFieldBit(pieceIndex) && !host.getBitField().getBitFieldBit(pieceIndex)) {
+//        if (peerBitfield.getBitFieldBit(pieceIndex) && !host.getBitField().getBitFieldBit(pieceIndex)) {
             byte[] piece = Arrays.copyOfRange(messagePayload, 4, messagePayload.length);
             host.getFilePieces()[pieceIndex] = new FilePiece(piece); // added piece to filePieces
 
@@ -134,13 +134,26 @@ public class MessageUtil {
                     host.getFileUtil().constructFile(host);
                     host.setHasFile(true);
                     host.log(String.format("Peer %s has downloaded the complete file.", host.getPeerId()));
+                    checkTermination(host);
                 } catch (IOException e) {
                     System.out.println("Error in creating file");
                     e.printStackTrace();
                 }
             return pieceIndex;
+//        }
+//        return null;
+    }
+
+    public static void checkTermination(Peer host) {
+        for(Map.Entry<String, BitField> entry : host.getPeerBitfieldMap().entrySet()){
+//                System.out.println(entry.getKey() + "Cardinality " + entry.getValue().getCardinality() + "Length " + host.getFilePieces().length);
+            host.log(entry.getKey() + " bitfield " + entry.getValue().getCardinality() + " / " + host.getFilePieces().length);
+            if(entry.getValue().getCardinality() != host.getFilePieces().length ){
+                return;
+            }
         }
-        return null;
+        System.out.println("All peers have files");
+        host.exit();
     }
 
     public static void handleHaveMessage(Peer host, PeerInfo peer, DataOutputStream outputStream, HaveMessage message) throws IOException {
@@ -152,14 +165,7 @@ public class MessageUtil {
 //        System.out.println("cardinality " + peer.peerId + " " + host.getPeerBitfieldMap().get(peer.peerId).getCardinality());
        // System.out.println(pieceIndex + " bitfield of peer" + peer.peerId + BitSet.valueOf(host.getPeerBitfieldMap().get(peer.peerId).getBitField().toByteArray()).toString());
         if(host.getHasFile()){
-            for(Map.Entry<String, BitField> entry : host.getPeerBitfieldMap().entrySet()){
-//                System.out.println(entry.getKey() + "Cardinality " + entry.getValue().getCardinality() + "Length " + host.getFilePieces().length);
-                if(entry.getValue().getCardinality() != host.getFilePieces().length ){
-                    return;
-                }
-            }
-            System.out.println("All peers have files");
-            host.exit();
+            checkTermination(host);
         }
         else {
             if (!host.getBitField().getBitFieldBit(pieceIndex)) {
