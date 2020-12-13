@@ -71,8 +71,8 @@ public class StartRemotePeers {
 
 //				String commandString = "ssh arpan@" + pInfo.peerAddress + " \"pkill -u arpan\"";
 
-//				String[] cmd = new String[]{"ssh", "arpan@" + pInfo.peerAddress, "cd cn/project; make run peerId=" + pInfo.peerId};
-				String[] cmd = new String[]{"ssh", "arpan@" + pInfo.peerAddress, "pkill -u arpan"};
+				String[] cmd = new String[]{"ssh", "arpan@" + pInfo.peerAddress, "cd cn/project; make run peerId=" + pInfo.peerId};
+//				String[] cmd = new String[]{"ssh", "arpan@" + pInfo.peerAddress, "pkill -u arpan"};
 
 //				System.out.println(Arrays.toString(cmd));
 				Runtime rt = Runtime.getRuntime();
