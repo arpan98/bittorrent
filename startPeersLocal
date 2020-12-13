@@ -1,0 +1,9 @@
+for peerId in 1002 1003 1004 1005 1007 1008 1009
+do
+	rm peer_$peerId/thefile
+done
+
+for peerId in {1001..1009}
+do
+  rm log_peer_$peerId.log
+done
