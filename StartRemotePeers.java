@@ -7,9 +7,6 @@
  * It is your responsibility to adapt this program to your running environment.
  */
 
-import java.io.*;
-import java.util.*;
-
 /*
  * The StartRemotePeers class begins remote peer processes. 
  * It reads configuration file PeerInfo.cfg and starts remote peer processes.
