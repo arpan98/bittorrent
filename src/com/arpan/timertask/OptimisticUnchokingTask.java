@@ -5,10 +5,7 @@ import com.arpan.message.UnchokeMessage;
 import com.arpan.model.PeerInfo;
 import com.arpan.model.State;
 
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
-import java.util.TimerTask;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class OptimisticUnchokingTask extends TimerTask {
@@ -23,12 +20,15 @@ public class OptimisticUnchokingTask extends TimerTask {
     @Override
     public void run() {
         List<String> interestedPeers = peer.getPeersInterestedInMe();
+//        peer.log("Interested: " + Arrays.toString(interestedPeers.toArray()));
         if (interestedPeers.isEmpty())
             return;
 
         List<String> options = peer.getSendChokedPeers().stream()
                 .filter(interestedPeers::contains)
                 .collect(Collectors.toList());
+
+//        peer.log("Options: " + Arrays.toString(options.toArray()));
 
         Random rand = new Random();
         if (options.size() > 0)
@@ -43,6 +43,7 @@ public class OptimisticUnchokingTask extends TimerTask {
     private void sendUnchoke(String otherId) {
         UnchokeMessage unchokeMessage = new UnchokeMessage();
         try {
+            peer.setSendState(otherId, State.UNCHOKED);
             unchokeMessage.sendUnChokeMessage(peerInfoMap.get(otherId).outstream);
         }
         catch(Exception e){

@@ -1,29 +1,18 @@
 package com.arpan;
 
 import com.arpan.log.LoggingThread;
-import com.arpan.message.*;
 import com.arpan.model.BitField;
 import com.arpan.model.FilePiece;
 import com.arpan.model.PeerInfo;
 import com.arpan.model.State;
-import com.arpan.socket.*;
-import com.arpan.timertask.OptimisticUnchokingTask;
-import com.arpan.timertask.PreferredNeighborsTask;
-import com.arpan.util.ByteUtils;
+import com.arpan.socket.PeerClient;
+import com.arpan.socket.PeerServer;
 import com.arpan.util.Config;
 import com.arpan.util.FileUtil;
 
-import java.io.IOException;
+import java.io.File;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-
-import java.io.*;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -124,8 +113,14 @@ public class Peer {
 
 
     public void exit(){
-        log("Peer is exiting.");
-        System.out.println("EXIT");
+//        log("Peer is exiting.");
+        try {
+            Thread.sleep(3000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+//        System.out.println("All peers have files");
+//        System.out.println("EXIT");
 //        peerServer.kill();
 //        peerServer.stop();
 //        peerClient.stop();
@@ -221,6 +216,10 @@ public class Peer {
         return preferredNeighbors;
     }
 
+    public void setPreferredNeighbors(List<String> neighbors) {
+        preferredNeighbors = neighbors;
+    }
+
     public Map<String, State> getReceiveStateMap() {
         return receiveStateMap;
     }
@@ -235,6 +234,10 @@ public class Peer {
 
     public FileUtil getFileUtil() {
         return fileUtil;
+    }
+
+    public void setSendState(String otherId, State state) {
+        sendStateMap.put(otherId, state);
     }
 
     public Map<String, PeerInfo> getPeerInfoMap() {

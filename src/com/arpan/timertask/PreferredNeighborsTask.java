@@ -49,6 +49,7 @@ public class PreferredNeighborsTask extends TimerTask {
         if(preferredNeighbors==null)
             return;
         if (!preferredNeighbors.isEmpty()) {
+            peer.setPreferredNeighbors(preferredNeighbors);
             String preferredNeighborsString = String.join(", ", preferredNeighbors);
             peer.log(String.format("Peer %s has the preferred neighbors %s.", peer.getPeerId(), preferredNeighborsString));
         }
@@ -64,6 +65,7 @@ public class PreferredNeighborsTask extends TimerTask {
     private void sendUnchoke(String otherId) {
         UnchokeMessage unchokeMessage = new UnchokeMessage();
         try {
+            peer.setSendState(otherId, State.UNCHOKED);
             unchokeMessage.sendUnChokeMessage(peerInfoMap.get(otherId).outstream);
 //            peer.log(String.format("Peer %s sending unchoke message to %s ",peer.getPeerId(), otherId));
 
@@ -93,6 +95,7 @@ public class PreferredNeighborsTask extends TimerTask {
     private void sendChoke(String otherId){
         ChokeMessage chokeMessage = new ChokeMessage();
         try {
+            peer.setSendState(otherId, State.CHOKED);
             chokeMessage.sendChokeMessage(peerInfoMap.get(otherId).outstream);
         }catch(Exception e){
             e.printStackTrace();

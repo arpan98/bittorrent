@@ -7,6 +7,7 @@ import com.arpan.util.MessageUtil;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
+import java.io.EOFException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -68,7 +69,7 @@ public class Messenger {
                     HaveMessage haveMessage = new HaveMessage(pieceIndex);
                     for (PeerInfo connectedPeer : peerInfoMap.values()) {
                         haveMessage.sendHaveMessage(connectedPeer.outstream);
-                        //System.out.println(host.getPeerId() + " Sent have [" + pieceIndex + "] message to " + connectedPeer);
+                        host.log(host.getPeerId() + " Sent have [" + pieceIndex + "] message to " + connectedPeer.peerId);
                     }
                     MessageUtil.handlePieceMessage(host, peer, pieceMessage);
 //                    if(pieceIndex!=null){
@@ -121,7 +122,10 @@ public class Messenger {
             }
             return new Message(messageType, messagePayload);
 
-        } catch(IOException e) {
+        } catch (EOFException e) {
+            host.exit();
+        }
+        catch(IOException e) {
             e.printStackTrace();
         }
         return null;

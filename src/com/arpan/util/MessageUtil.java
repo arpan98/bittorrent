@@ -51,11 +51,11 @@ public class MessageUtil {
         if (peerBitfield.hasExtraBits(host.getBitField())) {
             InterestedMessage interestedMessage = new InterestedMessage();
             interestedMessage.sendInterestedMessage(outputStream);
-//            host.log(String.format("Peer %s sent interested message to %s ", host.getPeerId(), peer.peerId));
+            host.log(String.format("Peer %s sent interested message to %s ", host.getPeerId(), peer.peerId));
         } else {
             NotInterestedMessage notInterestedMessage = new NotInterestedMessage();
             notInterestedMessage.sendNotInterestedMessage(outputStream);
-//            host.log(String.format("Peer %s sent not interested message to %s ", host.getPeerId(), peer.peerId));
+            host.log(String.format("Peer %s sent not interested message to %s ", host.getPeerId(), peer.peerId));
         }
     }
 
@@ -91,7 +91,7 @@ public class MessageUtil {
             // Send the request message for the next piece needed
             RequestMessage requestMessage = new RequestMessage(ByteBuffer.allocate(4).order(ByteOrder.BIG_ENDIAN).putInt(nextPieceNeeded).array());
             requestMessage.sendRequest(outputStream);
-//            host.log(String.format("Peer %s sent request to %s for piece %s.", host.getPeerId(), peer.peerId, nextPieceNeeded));
+            host.log(String.format("Peer %s sent request to %s for piece %s.", host.getPeerId(), peer.peerId, nextPieceNeeded));
         }
 
     }
@@ -108,7 +108,7 @@ public class MessageUtil {
             PieceMessage pieceMessage = new PieceMessage(messagePayload.array());
             pieceMessage.sendPieceMessage(outputStream);
            // senderSocketHandler.sendMessage(otherId, pieceMessage.getMessage());
-//            host.log(String.format("Peer %s sent piece message to %s ", host.getPeerId(), peer.peerId));
+            host.log(String.format("Peer %s sent piece %d to %s ", host.getPeerId(), pieceRequired, peer.peerId));
 
         }
     }
@@ -147,12 +147,12 @@ public class MessageUtil {
     public static void checkTermination(Peer host) {
         for(Map.Entry<String, BitField> entry : host.getPeerBitfieldMap().entrySet()){
 //                System.out.println(entry.getKey() + "Cardinality " + entry.getValue().getCardinality() + "Length " + host.getFilePieces().length);
-            host.log(entry.getKey() + " bitfield " + entry.getValue().getCardinality() + " / " + host.getFilePieces().length);
+//            host.log(entry.getKey() + " bitfield " + entry.getValue().getCardinality() + " / " + host.getFilePieces().length);
             if(entry.getValue().getCardinality() != host.getFilePieces().length ){
                 return;
             }
         }
-        System.out.println("All peers have files");
+//        System.out.println("All peers have files");
         host.exit();
     }
 
@@ -172,6 +172,7 @@ public class MessageUtil {
                 // send interested
                 InterestedMessage interestedMessage = new InterestedMessage();
                 interestedMessage.sendInterestedMessage(outputStream);
+                host.log(String.format("Peer %s sent interested message to %s ", host.getPeerId(), peer.peerId));
             }
         }
     }
